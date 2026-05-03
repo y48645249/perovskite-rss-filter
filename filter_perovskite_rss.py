@@ -21,7 +21,7 @@ from bs4 import BeautifulSoup
 from dateutil import parser as date_parser
 from feedgen.feed import FeedGenerator
 
-DEFAULT_OPML = "Inoreader Feeds 20260502.opml"
+DEFAULT_OPML = "Inoreader Feeds 20260502.xml"
 DEFAULT_OUTPUT = "filtered_perovskite.xml"
 
 PV_HINTS = [
