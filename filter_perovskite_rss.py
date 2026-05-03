@@ -55,19 +55,18 @@ def clean_text(value) -> str:
 
 
 def entry_text(entry) -> str:
-    parts = [
-        entry.get("title", ""),
-        entry.get("summary", ""),
-        entry.get("description", ""),
-        entry.get("subtitle", ""),
-    ]
+    parts = []
+
+    for key in ["title", "summary", "description", "subtitle"]:
+        if entry.get(key):
+            parts.append(clean_text(entry.get(key)))
 
     if entry.get("content"):
         for c in entry.get("content", []):
             if isinstance(c, dict):
-                parts.append(c.get("value", ""))
+                parts.append(clean_text(c.get("value", "")))
             else:
-                parts.append(str(c))
+                parts.append(clean_text(str(c)))
 
     if entry.get("authors"):
         for a in entry.get("authors", []):
@@ -155,6 +154,65 @@ def stable_guid(entry, link: str, title: str) -> str:
     return hashlib.sha256(raw.encode("utf-8", errors="ignore")).hexdigest()
 
 
+
+
+def extract_doi_from_text(text: str) -> str:
+    """Extract the first DOI-like string from arbitrary text."""
+    if not text:
+        return ""
+    match = re.search(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", str(text), flags=re.I)
+    if not match:
+        return ""
+    doi = match.group(0).rstrip(".);,]}")
+    return doi
+
+
+def extract_doi(entry, combined_text: str = "") -> str:
+    """Try common RSS/Atom DOI fields first, then fall back to regex search."""
+    candidate_keys = [
+        "doi",
+        "prism_doi",
+        "dc_identifier",
+        "dc_identifier_uri",
+        "citation_doi",
+        "arxiv_doi",
+        "id",
+        "guid",
+        "link",
+    ]
+    for key in candidate_keys:
+        value = entry.get(key)
+        if not value:
+            continue
+        doi = extract_doi_from_text(value)
+        if doi:
+            return doi
+    return extract_doi_from_text(combined_text)
+
+
+def extract_journal(entry, fallback_source: str = "") -> str:
+    """Extract journal/publication name when present; otherwise use feed title."""
+    candidate_keys = [
+        "prism_publicationname",
+        "prism_publicationName",
+        "publicationname",
+        "publication",
+        "journal",
+        "journal_title",
+        "dc_source",
+        "source",
+    ]
+    for key in candidate_keys:
+        value = entry.get(key)
+        if not value:
+            continue
+        if isinstance(value, dict):
+            value = value.get("title") or value.get("href") or ""
+        value = clean_text(value)
+        if value:
+            return value
+    return clean_text(fallback_source)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--opml", default=DEFAULT_OPML)
@@ -197,8 +255,10 @@ def main():
             if not is_relevant(text, include_keywords, exclude_keywords):
                 continue
 
-            guid = stable_guid(entry, link, title)
-            dedup_key = link or guid
+            doi = extract_doi(entry, text)
+            journal = extract_journal(entry, source_title)
+            guid = stable_guid(entry, link or (f"https://doi.org/{doi}" if doi else ""), title)
+            dedup_key = doi.lower() if doi else (link or guid)
             if dedup_key in seen:
                 continue
             seen.add(dedup_key)
@@ -210,6 +270,8 @@ def main():
                 "summary": summary,
                 "date": parse_entry_date(entry),
                 "source": source_title,
+                "journal": journal,
+                "doi": doi,
                 "guid": guid,
             })
         time.sleep(args.sleep)
@@ -232,7 +294,17 @@ def main():
         fe.title(item["title"])
         if item["link"]:
             fe.link(href=item["link"])
-        desc = f"Source: {item['source']}"
+        meta_lines = []
+        if item.get("journal"):
+            meta_lines.append(f"Journal: {html.escape(item['journal'])}")
+        if item.get("source") and item.get("source") != item.get("journal"):
+            meta_lines.append(f"Feed source: {html.escape(item['source'])}")
+        if item.get("doi"):
+            doi = html.escape(item["doi"])
+            meta_lines.append(f'DOI: <a href="https://doi.org/{doi}">{doi}</a>')
+        meta_lines.append(f"Published: {item['date'].strftime('%Y-%m-%d')}")
+
+        desc = "<br>".join(meta_lines)
         if item["summary"]:
             desc += f"<br><br>{html.escape(item['summary'])}"
         fe.description(desc)
