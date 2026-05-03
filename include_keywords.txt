@@ -1,0 +1,20 @@
+钙钛矿
+perovskite
+perovskites
+metal halide perovskite
+lead halide perovskite
+tin perovskite
+wide-bandgap perovskite
+mixed-halide perovskite
+perovskite solar cell
+perovskite solar cells
+perovskite/silicon
+perovskite-silicon
+perovskite silicon
+perovskite tandem
+tandem solar cell
+FAPbI3
+MAPbI3
+CsPbI3
+Sn-Pb
+Pb-Sn
