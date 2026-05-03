@@ -61,21 +61,28 @@ def entry_text(entry) -> str:
         entry.get("description", ""),
         entry.get("subtitle", ""),
     ]
+
     if entry.get("content"):
         for c in entry.get("content", []):
-            parts.append(c.get("value", ""))
-if entry.get("authors"):
-    for a in entry.get("authors", []):
-        if isinstance(a, dict):
-            parts.append(a.get("name", ""))
-        else:
-            parts.append(str(a))
-if entry.get("tags"):
-    for t in entry.get("tags", []):
-        if isinstance(t, dict):
-            parts.append(t.get("term", ""))
-        else:
-            parts.append(str(t))
+            if isinstance(c, dict):
+                parts.append(c.get("value", ""))
+            else:
+                parts.append(str(c))
+
+    if entry.get("authors"):
+        for a in entry.get("authors", []):
+            if isinstance(a, dict):
+                parts.append(a.get("name", ""))
+            else:
+                parts.append(str(a))
+
+    if entry.get("tags"):
+        for t in entry.get("tags", []):
+            if isinstance(t, dict):
+                parts.append(t.get("term", ""))
+            else:
+                parts.append(str(t))
+
     return clean_text(" ".join(parts))
 
 
